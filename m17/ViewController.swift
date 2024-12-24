@@ -11,9 +11,14 @@ class ViewController: UIViewController {
     
     let service = Service()
     
-    private lazy var imageView: UIImageView = {
-        let view = UIImageView(frame: CGRect(x: 0, y: 0, width: 200, height: 200))
-        view.contentMode = .scaleAspectFit
+    var images: [UIImage] = []
+    
+    private lazy var stackView: UIStackView = {
+       let view = UIStackView()
+        view.axis = .vertical
+        view.distribution = .fillEqually
+        view.spacing = 5
+        view.backgroundColor = .systemCyan
         return view
     }()
     
@@ -25,24 +30,44 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.addSubview(imageView)
-        view.addSubview(activityIndicator)
+        view.addSubview(stackView)
+        stackView.addArrangedSubview(activityIndicator)
         activityIndicator.startAnimating()
         onLoad()
+        setups()
     }
 
     private func onLoad() {
-        service.getImageURL { urlString, error in
-            guard
-                let urlString = urlString
-            else {
-                return
+        let dispatchGroup = DispatchGroup()
+        for _ in 0...4{
+            dispatchGroup.enter()
+            self.service.getImageURL { urlString, error in
+                guard let urlString = urlString else {return}
+                let image = self.service.loadImage(urlString: urlString)
+                self.images.append(image!)
+                dispatchGroup.leave()
             }
-            
-            let image = self.service.loadImage(urlString: urlString)
-            self.imageView.image = image
-            
+        }
+        
+        dispatchGroup.notify(queue: .main) {
             self.activityIndicator.stopAnimating()
+            
+            for i in 0...4{
+                let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 200, height: 200))
+                imageView.contentMode = .scaleAspectFit
+                imageView.image = self.images[i]
+                self.stackView.addArrangedSubview(imageView)
+            }
+        }
+    }
+    
+// MARK: - Constraints
+    
+    func setups(){
+        stackView.snp.makeConstraints { sv in
+            sv.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottomMargin)
+            sv.top.equalTo(view.safeAreaLayoutGuide.snp.topMargin)
+            sv.left.right.equalToSuperview()
         }
     }
 }
